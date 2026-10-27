@@ -1,0 +1,4 @@
+email,app_password,role
+sv01@st.uni.lab,REPLACE_WITH_APP_PASSWORD,campus
+gv01@uni.lab,REPLACE_WITH_APP_PASSWORD,home
+nv01@uni.lab,REPLACE_WITH_APP_PASSWORD,campus

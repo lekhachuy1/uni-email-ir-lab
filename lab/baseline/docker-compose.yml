@@ -1,0 +1,21 @@
+# Sinh đăng nhập hợp lệ nền. Chạy trên NET-CAMPUS (và/hoặc home-gv01 cho role=home).
+# Chuẩn bị users.csv (cùng thư mục) theo mẫu users.csv.example, dùng app password tạo trong mailcow.
+services:
+  baseline:
+    image: python:3.12-slim
+    container_name: baseline-logins
+    restart: unless-stopped
+    environment:
+      TZ: UTC
+      IMAP_HOST: mail.uni.lab
+      IMAP_PORT: "993"
+      USERS_FILE: /data/users.csv
+    volumes:
+      - ./normal-logins.py:/app/normal-logins.py:ro
+      - ./users.csv:/data/users.csv:ro
+    command: ["python", "/app/normal-logins.py"]
+    networks: [labnet]
+
+networks:
+  labnet:
+    external: true

@@ -1,0 +1,29 @@
+# MTA của kẻ tấn công: Postfix gửi thư từ domain giả (evil.lab, uni-lab.support) tới MX của uni.lab.
+# Mục đích: thư phishing đi qua đúng kiểm tra SPF/DMARC/Rspamd như thật (KHÔNG gửi nội bộ từ chính mailcow).
+# GoPhish Sending Profile trỏ tới smtp://attacker-smtp:25 (hoặc <attacker-ip>:25).
+services:
+  attacker-smtp:
+    image: boky/postfix:latest            # Postfix cấu hình bằng biến môi trường
+    container_name: attacker-smtp
+    restart: unless-stopped
+    environment:
+      TZ: UTC
+      HOSTNAME: mail.uni-lab.support
+      ALLOWED_SENDER_DOMAINS: "uni-lab.support evil.lab"
+      # Chuyển hướng mọi thư về MX nội bộ của lab thay vì tra DNS ra Internet:
+      RELAYHOST: "[mail.uni.lab]:25"
+      # Không auth, không TLS bắt buộc cho chặng ra (lab nội bộ). Để SPF của uni-lab.support pass, thêm
+      # TXT "v=spf1 ip4:203.0.113.66 -all" vào dns/ cho domain này.
+    ports:
+      - "25:25"
+    networks:
+      labinet:
+        aliases: [mail.uni-lab.support, mail.evil.lab]
+      labnet:                               # cần để relay tới mail.uni.lab (MX nội bộ)
+        aliases: [attacker-smtp]
+
+networks:
+  labinet:
+    external: true
+  labnet:
+    external: true

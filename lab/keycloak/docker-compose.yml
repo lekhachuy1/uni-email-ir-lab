@@ -1,0 +1,66 @@
+# Keycloak 26.8.1 + PostgreSQL cho lab email IR (sso.uni.lab).
+# Chạy: cp .env.example .env  ->  sửa mật khẩu  ->  docker compose up -d
+# Log sự kiện ra FILE dạng plain-text để Wazuh đọc (KHÔNG dùng JSON: xem skill wazuh-email-detection).
+# Tạo mạng dùng chung trước: docker network create labnet
+services:
+  kc-postgres:
+    image: postgres:18-alpine
+    container_name: kc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: ${KC_DB_USER:?set in .env}
+      POSTGRES_PASSWORD: ${KC_DB_PASSWORD:?set in .env}
+      TZ: UTC
+    volumes:
+      - kc-pgdata:/var/lib/postgresql          # postgres:18+ lưu dữ liệu ở subdir của /var/lib/postgresql
+    networks: [labnet]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${KC_DB_USER} -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    container_name: keycloak
+    restart: unless-stopped
+    depends_on:
+      kc-postgres:
+        condition: service_healthy
+    command:
+      - start
+      - --hostname=https://sso.uni.lab:8443
+      - --https-certificate-file=/opt/keycloak/conf/certs/tls.crt
+      - --https-certificate-key-file=/opt/keycloak/conf/certs/tls.key
+      # Log sự kiện: ra console + file; raise success-level để LOGIN/IMPERSONATE hiện ra (mặc định DEBUG)
+      - --log=console,file
+      - --log-file=/opt/keycloak/data/log/keycloak.log
+      - --spi-events-listener--jboss-logging--success-level=info
+      - --spi-events-listener--jboss-logging--error-level=warn
+    environment:
+      # Admin tạm thời (chỉ tạo ở lần khởi động đầu). Tạo admin thật rồi xoá tài khoản này.
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN:?set in .env}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:?set in .env}
+      KC_DB: postgres
+      KC_DB_URL_HOST: kc-postgres
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_USERNAME: ${KC_DB_USER}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+      TZ: UTC
+    volumes:
+      - ./certs:/opt/keycloak/conf/certs:ro        # tls.crt + tls.key do make-ca.sh tạo
+      - ./kc-log:/opt/keycloak/data/log            # Wazuh agent đọc keycloak.log ở đây
+    ports:
+      - "8443:8443"                                # HTTPS webmail/SSO
+      - "127.0.0.1:9000:9000"                      # health/metrics: chỉ localhost, KHÔNG mở ra ngoài
+    networks:
+      labnet:
+        aliases: [sso.uni.lab]
+
+volumes:
+  kc-pgdata:
+
+networks:
+  labnet:
+    external: true

@@ -1,0 +1,37 @@
+# ĐẶT FILE NÀY trong thư mục cài mailcow (/opt/mailcow-dockerized/), cạnh docker-compose.yml của mailcow.
+# KHÔNG sửa docker-compose.yml gốc của mailcow. File override chỉ thêm việc đẩy log qua syslog để Wazuh thu.
+# Sau khi thêm: cd /opt/mailcow-dockerized && docker compose down && docker compose up -d
+#
+# Lưu ý (xem skill wazuh-email-detection): container postfix/dovecot của mailcow dùng syslog-ng ghi ra stdout
+# ĐÃ kèm header syslog; driver syslog của Docker thêm header thứ 2 -> decoder postfix/dovecot built-in có thể
+# không khớp. Kiểm tra 1 dòng thật bằng wazuh-logtest, nếu cần thì chỉnh template rsyslog chỉ giữ %msg%.
+# Cũng lưu ý: đổi sang driver syslog thì `docker compose logs` của mailcow sẽ ngừng hoạt động (UI/Redis log vẫn chạy).
+services:
+  postfix-mailcow:
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://10.10.20.12:514"   # IP của siem.uni.lab (Wazuh manager / rsyslog)
+        syslog-facility: local3
+        tag: "postfix"
+  dovecot-mailcow:
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://10.10.20.12:514"
+        syslog-facility: local3
+        tag: "dovecot"
+  sogo-mailcow:
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://10.10.20.12:514"
+        syslog-facility: local3
+        tag: "sogo"
+  netfilter-mailcow:
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://10.10.20.12:514"
+        syslog-facility: local3
+        tag: "netfilter"

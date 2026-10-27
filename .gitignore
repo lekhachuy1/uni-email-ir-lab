@@ -1,0 +1,23 @@
+# === Bí mật: KHÔNG BAO GIỜ commit ===
+**/.env
+*.key
+*.crt
+*.pem
+lab-root-ca.*
+# users.csv chứa app password thật; chỉ commit users.csv.example
+**/users.csv
+
+# === Dữ liệu runtime / bằng chứng ===
+**/kc-log/
+Evidence/
+*.db
+*.log
+
+# === Third-party tải về (bản release GoPhish, không phải mã của nhóm) ===
+lab/gophish-win/
+
+# === Linh tinh ===
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db

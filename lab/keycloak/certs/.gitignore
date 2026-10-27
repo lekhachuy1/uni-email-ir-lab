@@ -1,0 +1,4 @@
+# Cert do ../certs/make-ca.sh tạo. KHÔNG commit cert/khoá thật.
+*.crt
+*.key
+!.gitignore
