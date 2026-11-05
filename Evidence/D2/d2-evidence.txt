@@ -1,0 +1,36 @@
+===== DIỄN TẬP D2 — DÙNG TRÁI PHÉP TÀI KHOẢN (đăng nhập / gửi email) =====
+Ngày 2026-11-05 (log UTC). Cấu hình v1.
+
+[A] MFA CHẶN ĐĂNG NHẬP CHỈ-MẬT-KHẨU (SSO)
+- gv01 (nhóm GiangVien, bắt buộc MFA) đăng nhập token bằng mật khẩu -> http=400
+  "Invalid user credentials" / chưa đủ MFA => BỊ CHẶN.
+- Tương phản: sv01 (không MFA) ở D1 bị chiếm quyền. => MFA là biện pháp quyết định (Q2).
+
+[B] RẢI MẬT KHẨU (password spraying) — v1
+- Thử 'Password123' và các mật khẩu đoán trên sv02..sv06: TẤT CẢ http=400 (thất bại).
+- Sau vài vòng: brute-force {"numFailures":2,"disabled":true} trên sv02, sv03...
+- KẾT LUẬN: mật khẩu mạnh (>=12, chặn danh sách lộ) + khóa brute-force => rải mật khẩu
+  KHÔNG chiếm được tài khoản nào trên v1. (Q2)
+
+[C] LẠM DỤNG GỬI THƯ qua SMTP (PHÁT HIỆN gap quan trọng)
+- Kẻ tấn công có mật khẩu MAIL của gv01 đăng nhập SMTP (587, STARTTLS) -> gửi 5 thư
+  spam/phishing nội bộ tới sv02..sv06 = THÀNH CÔNG.
+- Bằng chứng mail.log:
+    postfix/submission/smtpd: client=172.18.0.1, sasl_method=LOGIN (gv01)
+    postfix/qmgr: from=<gv01@uni.lab>, nrcpt=1
+    postfix/lmtp: to=<sv02@st.uni.lab>, relay=mail.uni.lab  (đã giao)
+  (ảnh 01-spam-inbox-sv02.png: hộp thư sv02 nhận thư "[Hoc bong] Nhap thong tin gap" từ gv01)
+- PHÁT HIỆN THEN CHỐT: MFA trên SSO KHÔNG bảo vệ IMAP/SMTP — giao thức cũ dùng mật khẩu
+  bỏ qua MFA. Đây là "lỗ hổng v0" cần vá ở v1.
+- HARDENING v1 đề xuất: tắt đăng nhập IMAP/SMTP bằng mật khẩu cho người dùng
+  (chỉ app password có kiểm soát), và đặt giới hạn tần suất gửi (ratelimit 30 thư/giờ).
+
+[D] PHÁT HIỆN (Q3)
+- Keycloak LOGIN_ERROR burst nhiều username liên tiếp (sv02,sv03,sv04,sv05,sv06)
+  = chữ ký rải mật khẩu (nhiều tài khoản, 1 nguồn).
+- mail.log: gv01 gửi hàng loạt tới nhiều người nhận trong thời gian ngắn = chữ ký lạm dụng gửi.
+
+KẾT LUẬN D2:
+- v1 chặn hiệu quả rải mật khẩu ở lớp SSO.
+- Nhưng bộc lộ gap giao thức cũ (IMAP/SMTP password bỏ qua MFA) — là phát hiện giá trị,
+  dẫn tới khuyến nghị hardening v1 (tắt password IMAP/SMTP cho user + ratelimit).

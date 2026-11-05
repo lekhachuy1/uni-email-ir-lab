@@ -1,0 +1,44 @@
+===== DIỄN TẬP D1 — PHISHING → CHIẾM QUYỀN TÀI KHOẢN (cấu hình v1) =====
+Ngày 2026-11-05 (log UTC). Nạn nhân: sv01@st.uni.lab (SV, không MFA).
+Kẻ tấn công: máy ngoài lab. Mật khẩu bị lộ qua phishing: <REDACTED-PW>.
+
+[T0] TẤN CÔNG
+- Gửi email phishing mạo danh Phòng CNTT (From: it-support@uni-lab.support),
+  tiêu đề "[KHAN] Xac minh lai tai khoan email trong 24h",
+  link giả: http://login.uni-lab.support/verify?u=sv01  (xem ảnh 01-phishing-email-inbox.png)
+- Nạn nhân nhập mật khẩu vào trang giả → kẻ tấn công có credential.
+- Kẻ tấn công đăng nhập IMAP bằng credential đánh cắp → OK (đọc được thư) = CHIẾM QUYỀN THÀNH CÔNG.
+- Cài persistence: quy tắc Sieve chuyển tiếp lén -> attacker@evil.lab  (evilrule ACTIVE).
+
+[T1] PHÁT HIỆN (nguồn: /var/log/mail/mail.log)
+  dovecot: imap-login: Login: user=<sv01@st.uni.lab>, method=PLAIN, rip=172.18.0.1, TLS
+  => đăng nhập IMAP ngoài giờ/bất thường. (Lưu ý: do lab gần single-host, IP nguồn
+     hiện là gateway Docker 172.18.0.1 — giới hạn đã nêu ở Chương Thiết kế.)
+
+[T2] PHÂN MỨC: P3 (1 tài khoản SV, có persistence).
+
+[T3] KIỂM SOÁT 2 LỚP (vì Keycloak và mail là hai kho định danh độc lập):
+  (1) Keycloak: enabled=false + logout toàn bộ phiên.
+  (2) Mail:  đổi mật khẩu hộp thư
+             → doveadm auth cache flush   ← BẮT BUỘC (nếu không, mật khẩu cũ còn
+               dùng được một lúc do Dovecot cache — PHÁT HIỆN quan trọng của đồ án)
+             → doveadm kick (đóng phiên IMAP đang mở)
+             → xóa quy tắc Sieve chuyển tiếp.
+
+[T3] 5 PHÉP THỬ ÂM TÍNH (sau kiểm soát — tất cả phải BỊ CHẶN):
+  1. IMAP mật khẩu cũ (<REDACTED-PW>)      -> FAIL  ✔ (sau auth cache flush)
+  2. Keycloak login mật khẩu cũ            -> http=400/401 (user disabled) ✔
+  3. MFA kẻ tấn công tự đăng ký            -> N/A (sv01 không có MFA)
+  4. IMAP mật khẩu MỚI (xác nhận đã đổi)   -> mật khẩu cũ hỏng, mật khẩu mới mới dùng được ✔
+  5. Quy tắc chuyển tiếp còn không          -> 0 (đã xóa) ✔
+  => ĐẠT: kẻ tấn công mất toàn bộ quyền truy cập (trả lời Q4).
+
+[T4] Loại bỏ xong. [T5] Khôi phục khi chủ TK đạt xác minh (CL-01): cấp mật khẩu mới + bật lại user.
+[T6] Đóng sự cố sau khi điền BC-01/BB-03/CL-02/CL-03.
+
+KẾT LUẬN D1:
+- Chiếm quyền qua phishing THÀNH CÔNG trên tài khoản không MFA (sv01) — minh chứng rủi ro v0.
+- Điểm mấu chốt: vô hiệu hóa Keycloak KHÔNG chặn IMAP → phải kiểm soát cả lớp mail (hai kho định danh).
+- Containment hoàn chỉnh đòi hỏi auth-cache flush; sau đó 5 phép thử âm tính đều chặn.
+- Với tài khoản có MFA (GV/NV/IT, v1): kẻ tấn công có mật khẩu vẫn KHÔNG qua được đăng nhập SSO
+  (cần OTP) — xem D1b/Chương Vận hành.

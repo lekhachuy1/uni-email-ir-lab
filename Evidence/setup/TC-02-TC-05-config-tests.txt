@@ -1,0 +1,29 @@
+BẰNG CHỨNG CA KIỂM THỬ CẤU HÌNH (Q1 — chính sách được cưỡng chế)
+realm "uni", cấu hình v1. Thu thập ngày 2026-11-05 (UTC+7), VM 192.168.238.128.
+
+===== TC-02: mật khẩu yếu/<12 ký tự BỊ TỪ CHỐI =====
+$ kcadm set-password --username sv02 --new-password 'weak'
+  -> Invalid password: minimum length 12. [invalidPasswordMinLengthMessage]
+$ kcadm set-password --username sv02 --new-password 'short1'
+  -> Invalid password: minimum length 12. [invalidPasswordMinLengthMessage]
+$ kcadm set-password --username sv01 --new-password '<REDACTED-PW>'   (>=12)
+  -> (không lỗi) = CHẤP NHẬN
+KẾT LUẬN: policy length(12) được cưỡng chế. ĐẠT.
+
+===== TC-05: khóa tạm thời sau 10 lần sai (brute-force) =====
+Vector: token endpoint (Direct Grant, admin-cli) — cũng là vector rải mật khẩu D2.
+  sv01 mật khẩu ĐÚNG (ban đầu)        -> http=200, có access_token
+  10 lần mật khẩu SAI                  -> http=400 (mỗi lần)
+  mật khẩu ĐÚNG khi đang khóa          -> http=400 ; kcadm attack-detection: disabled=true
+  sau khi gỡ khóa, mật khẩu ĐÚNG       -> http=200, có access_token (khôi phục được)
+KẾT LUẬN: bruteForceProtected + failureFactor(10) được cưỡng chế, khóa tạm thời
+(không vĩnh viễn — tránh vũ khí hóa DoS). ĐẠT.
+
+Ghi chú: Keycloak trả cùng chuỗi "Invalid user credentials" khi sai và khi bị khóa
+(không tiết lộ lý do) — phân biệt khóa qua kcadm attack-detection (disabled=true).
+
+===== Phát hiện (Q3) =====
+Log file /opt/keycloak/data/log/keycloak.log chứa 32+ dòng:
+  type="LOGIN_ERROR" realmName="uni" clientId="admin-cli" ipAddress="172.18.0.1"
+  error="invalid_user_credentials" grant_type="password" username="sv01"
+=> đủ trường để SIEM (Wazuh) phát hiện brute-force/spraying và dựng dòng thời gian.

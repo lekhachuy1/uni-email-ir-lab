@@ -1,0 +1,81 @@
+# Mail server nhẹ cho lab IR email (thay cho mailcow khi phần cứng hạn chế).
+# docker-mailserver (Postfix + Dovecot + ManageSieve) + Roundcube webmail (SQLite).
+# Tắt hết phần nặng (ClamAV/Rspamd/SpamAssassin/Amavis/Fail2ban) để chạy ~0.5GB.
+# Mạng dùng chung: docker network create labnet (đã có).
+services:
+  dms:
+    image: mailserver/docker-mailserver:14.0
+    container_name: dms
+    hostname: mail.uni.lab
+    environment:
+      - OVERRIDE_HOSTNAME=mail.uni.lab
+      - SSL_TYPE=manual
+      - SSL_CERT_PATH=/tmp/ssl/tls.crt
+      - SSL_KEY_PATH=/tmp/ssl/tls.key
+      - ENABLE_CLAMAV=0
+      - ENABLE_RSPAMD=0
+      - ENABLE_SPAMASSASSIN=0
+      - ENABLE_AMAVIS=0
+      - ENABLE_OPENDKIM=0
+      - ENABLE_OPENDMARC=0
+      - ENABLE_POLICYD_SPF=0
+      - ENABLE_FAIL2BAN=0
+      - ENABLE_MANAGESIEVE=1          # cần cho demo quy tắc chuyển tiếp lén (persistence)
+      - POSTMASTER_ADDRESS=postmaster@uni.lab
+      - PERMIT_DOCKER=connected-networks
+      - SPOOF_PROTECTION=0            # lab: cho phép mô phỏng gửi, không chặn
+      - LOG_LEVEL=info
+      - POSTFIX_MESSAGE_SIZE_LIMIT=10485760
+    volumes:
+      - ./dms/mail-data/:/var/mail/
+      - ./dms/mail-state/:/var/mail-state/
+      - ./dms/mail-logs/:/var/log/mail/
+      - ./dms/config/:/tmp/docker-mailserver/
+      - ../certs/mail.uni.lab/:/tmp/ssl/:ro
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "25:25"
+      - "143:143"
+      - "465:465"
+      - "587:587"
+      - "993:993"
+    restart: unless-stopped
+    stop_grace_period: 1m
+    cap_add: [NET_ADMIN]
+    healthcheck:
+      test: ["CMD-SHELL", "ss -lnt | grep -q ':993' || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+    networks:
+      labnet:
+        aliases: [mail.uni.lab, mail.st.uni.lab, webmail-backend]
+
+  roundcube:
+    image: roundcube/roundcubemail:1.6.9-apache
+    container_name: roundcube
+    depends_on:
+      dms:
+        condition: service_healthy
+    environment:
+      - ROUNDCUBEMAIL_DB_TYPE=sqlite
+      - ROUNDCUBEMAIL_DEFAULT_HOST=ssl://mail.uni.lab
+      - ROUNDCUBEMAIL_DEFAULT_PORT=993
+      - ROUNDCUBEMAIL_SMTP_SERVER=tls://mail.uni.lab
+      - ROUNDCUBEMAIL_SMTP_PORT=587
+      - ROUNDCUBEMAIL_PLUGINS=managesieve
+      - ROUNDCUBEMAIL_DEFAULT_CHARSET=UTF-8
+    volumes:
+      - ./roundcube/db/:/var/roundcube/db/
+      - ./roundcube/config/:/var/roundcube/config/     # thêm cấu hình bỏ verify TLS nội bộ
+    ports:
+      - "8080:80"                                      # webmail: http://<VM>:8080
+    restart: unless-stopped
+    networks:
+      labnet:
+        aliases: [webmail.uni.lab]
+
+networks:
+  labnet:
+    external: true

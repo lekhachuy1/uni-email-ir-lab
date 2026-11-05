@@ -1,0 +1,30 @@
+===== DIỄN TẬP D3 — NGƯỜI DÙNG HỢP LỆ (đổi thiết bị / quên mật khẩu / mất MFA / vishing) =====
+Ngày 2026-11-05 (log UTC). Cấu hình v1.
+
+[3a] ĐỔI THIẾT BỊ — không bị khóa vĩnh viễn
+- sv03 bị khóa tạm do spraying ở D2; sau khi hết thời gian/được gỡ khóa -> đăng nhập mail OK.
+- KẾT LUẬN: khóa brute-force là TẠM THỜI, tăng dần -> không vũ khí hóa thành DoS với người dùng
+  hợp lệ (trả lời Q5).
+
+[3b] QUÊN MẬT KHẨU / KHÔI PHỤC sv01 (nối tiếp D1) theo quy trình helpdesk
+- Bật lại tài khoản Keycloak (enabled=true) + đặt lại mật khẩu (>=12) + buộc đổi mật khẩu
+  lần đăng nhập đầu (required action UPDATE_PASSWORD).
+- Đổi mật khẩu hộp thư + flush auth cache.
+- XÁC NHẬN: sv01 đăng nhập lại webmail THÀNH CÔNG bằng mật khẩu mới (ảnh 01-sv01-restored.png).
+  (Lưu ý: kiểm tra IMAP ngay trong script báo FAIL do độ trễ auth-cache; webmail vài giây sau OK
+   -> củng cố phát hiện "phải flush auth cache" ở D1.)
+- Đây là mốc T5 KHÔI PHỤC: chủ tài khoản gửi/nhận lại bình thường (kiểm thử âm tính sau T5).
+
+[3c] MẤT MFA + IT VẮNG MẶT (quy trình)
+- Dùng MÃ KHÔI PHỤC cấp khi đăng ký MFA, hoặc quy trình BREAK-GLASS có kiểm soát.
+- Break-glass sinh CẢNH BÁO; đặt lại MFA theo CL-01 mức 3 (four-eyes + duyệt trưởng đơn vị).
+- Không đặt lại MFA qua kênh chưa xác minh.
+
+[3d] VISHING HELPDESK — PHẢI TỪ CHỐI (phép thử quy trình/con người)
+- Kẻ giả danh gọi đòi reset MFA "gấp" (sắp thi/họp) = dấu hiệu gây áp lực -> tăng cảnh giác.
+- Nguyên tắc CL-01: không xác minh qua kênh người gọi cung cấp; GỌI LẠI số trong hồ sơ.
+- Kết quả đúng: TỪ CHỐI yêu cầu; mở sự cố nếu nghi mạo danh.
+
+KẾT LUẬN D3:
+- Biện pháp v1 không gây hại cho người dùng hợp lệ (khóa tạm thời, khôi phục được) — Q5 đạt.
+- Quy trình khôi phục có kiểm soát (CL-01) + chống mạo danh (từ chối vishing) bảo vệ khâu con người.

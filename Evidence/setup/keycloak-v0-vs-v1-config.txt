@@ -1,0 +1,33 @@
+BẰNG CHỨNG CẤU HÌNH KEYCLOAK — realm "uni" (lab IR email)
+Thu thập qua kcadm, ngày 2026-11-05 (UTC+7). Nguồn: VM 192.168.238.128.
+
+================= v0 (baseline, trước khi áp chính sách) =================
+{
+  "bruteForceProtected" : false,
+  "permanentLockout" : false,
+  "maxFailureWaitSeconds" : 900,
+  "failureFactor" : 30,
+  "eventsEnabled" : true,
+  "eventsListeners" : [ "jboss-logging" ]
+}
+passwordPolicy: (không có)
+Clients bật directAccessGrants: chỉ "admin-cli" (dùng cho CLI quản trị);
+  account / account-console / security-admin-console: directAccessGrantsEnabled=false
+=> Không client người dùng nào cho Direct Grant (không có đường bỏ qua MFA qua ROPC).
+Groups: GiangVien, IT-Helpdesk, IT-MailAdmin, NhanVien, SinhVien
+
+================= v1 (sau khi áp chính sách Huynh) =================
+{
+  "bruteForceProtected" : true,
+  "failureFactor" : 10,
+  "permanentLockout" : false,
+  "waitIncrementSeconds" : 60,
+  "maxFailureWaitSeconds" : 900,
+  "passwordPolicy" : "length(12) and passwordHistory(5) and notUsername(undefined)"
+}
+MFA: required action CONFIGURE_TOTP đặt cho gv01, gv02, nv01, it.helpdesk, adm.mail
+     (buộc đăng ký TOTP ở lần đăng nhập kế; sau đó Conditional OTP bắt buộc nhập mã).
+Sinh viên: giữ không MFA (v0 gap) — theo đề tài SV là "khuyến nghị".
+
+Ánh xạ điều khoản chính sách: P-01 (length 12), P-05 (history 5), B-01 (khóa 10 lần tăng dần),
+M-01 (MFA GV/NV/IT). Xem Chương 3 báo cáo.

@@ -1,4 +1,4 @@
-# Lab dựng cho đồ án — phần của Huy
+# Lab dựng cho đồ án email IR
 
 Bộ `docker-compose` cho lab email đại học giả lập, phục vụ diễn tập chiếm quyền/lạm dụng tài khoản.
 Mọi thứ chạy **offline trong lab**, tài khoản và dữ liệu đều giả. Giờ hệ thống dùng **UTC** (log để UTC,

@@ -9,11 +9,11 @@ lab-root-ca.*
 
 # === Dữ liệu runtime / bằng chứng ===
 **/kc-log/
-Evidence/
+# Evidence/ (now committed: redacted logs + screenshots)
 *.db
 *.log
 
-# === Third-party tải về (bản release GoPhish, không phải mã của nhóm) ===
+# === Third-party tải về (bản release GoPhish, không phải mã nguồn dự án) ===
 lab/gophish-win/
 
 # === Linh tinh ===
@@ -21,3 +21,6 @@ __pycache__/
 *.pyc
 .DS_Store
 Thumbs.db
+
+# Word lock/temp files
+~$*
