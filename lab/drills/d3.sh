@@ -1,10 +1,13 @@
 #!/bin/bash
-# NOTE: lab credentials were redacted (<REDACTED-PW>). Set your own before running.
+# Credentials tu ../.env (copy tu env.example). Khong commit secret.
+set -a; . "$(dirname "$0")/../.env" 2>/dev/null || true; set +a
+CONTAIN_PW="Contained_$(openssl rand -hex 4 2>/dev/null || echo abcd1234)"
+RECOVER_PW="Recovered_$(openssl rand -hex 4 2>/dev/null || echo abcd1234)"
 set -u
 ts(){ date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 KC="docker exec keycloak /opt/keycloak/bin/kcadm.sh"
 $KC config credentials --server https://localhost:8443 --realm master --user admin \
-  --password '<REDACTED-PW>' --truststore /opt/keycloak/data/kc-trust.p12 --trustpass changeit >/dev/null 2>&1
+  --password "${KC_ADMIN_PASSWORD:?set in .env}" --truststore /opt/keycloak/data/kc-trust.p12 --trustpass changeit >/dev/null 2>&1
 CURL="curl -sk --resolve sso.uni.lab:8443:127.0.0.1"
 TOK="https://sso.uni.lab:8443/realms/uni/protocol/openid-connect/token"
 uid(){ $KC get users -r uni -q username=$1 --fields id|grep -oE '[0-9a-f-]{36}'|head -1; }
@@ -22,18 +25,18 @@ echo "########## DIỄN TẬP D3 — NGƯỜI DÙNG HỢP LỆ ##########"
 
 echo "[3a $(ts)] Đổi thiết bị: đăng nhập hợp lệ từ ngữ cảnh mới KHÔNG bị khóa vĩnh viễn"
 $KC delete attack-detection/brute-force/users/$(uid sv03) -r uni >/dev/null 2>&1
-echo "   sv03 (sau khi gỡ khóa tạm) đăng nhập mail: $(imap sv03@st.uni.lab <REDACTED-PW>)"
+echo "   sv03 (sau khi gỡ khóa tạm) đăng nhập mail: $(imap sv03@st.uni.lab "$USER_PW")"
 echo "   => khóa brute-force là TẠM THỜI => người dùng hợp lệ khôi phục được (Q5: không vũ khí hóa DoS)."
 
 echo
 echo "[3b $(ts)] Quên mật khẩu / KHÔI PHỤC sv01 (nối tiếp D1) theo quy trình helpdesk"
 SVID=$(uid sv01)
 $KC update users/$SVID -r uni -s enabled=true >/dev/null 2>&1 && echo "   -> bật lại tài khoản Keycloak"
-$KC set-password -r uni --username sv01 --new-password '<REDACTED-PW>' >/dev/null 2>&1 && echo "   -> đặt lại mật khẩu (>=12)"
+$KC set-password -r uni --username sv01 --new-password "$RECOVER_PW" >/dev/null 2>&1 && echo "   -> đặt lại mật khẩu (>=12)"
 $KC update users/$SVID -r uni -s 'requiredActions=["UPDATE_PASSWORD"]' >/dev/null 2>&1 && echo "   -> buộc đổi mật khẩu lần đăng nhập đầu"
-docker exec dms setup email update sv01@st.uni.lab '<REDACTED-PW>' >/dev/null 2>&1
+docker exec dms setup email update sv01@st.uni.lab "$RECOVER_PW" >/dev/null 2>&1
 docker exec dms doveadm auth cache flush >/dev/null 2>&1
-echo "   sv01 dùng lại được: IMAP(mail) = $(imap sv01@st.uni.lab '<REDACTED-PW>')"
+echo "   sv01 dùng lại được: IMAP(mail) = $(imap sv01@st.uni.lab "$RECOVER_PW")"
 echo "   => T5 KHÔI PHỤC đạt: chủ tài khoản gửi/nhận lại bình thường (kiểm thử âm tính sau T5)."
 
 echo

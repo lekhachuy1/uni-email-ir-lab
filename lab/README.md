@@ -7,6 +7,23 @@ báo cáo quy đổi UTC+7).
 > Các thông số ở đây lấy từ reference đã kiểm chứng trong các skill (`~/.claude/skills/*`). Những hành vi
 > đánh dấu UNVERIFIED trong reference **phải kiểm thử lại trên lab** trước khi khẳng định trong báo cáo.
 
+## 0. Cài nhanh — một lệnh (khuyến nghị cho đồng đội)
+
+Phiên bản **nhẹ** (Keycloak + docker-mailserver + Roundcube) chạy trọn trên **một VM ~6 GB**:
+
+```bash
+git clone <REPO_URL> lab && cd lab
+cp env.example .env        # sửa mật khẩu MẠNH của bạn (KHÔNG commit .env)
+./setup-all.sh             # mạng + CA + Keycloak + realm/11 user + mail + webmail
+# Xong → Webmail: http://<VM_IP>:8080   |   Keycloak: https://<VM_IP>:8443
+bash drills/d1.sh          # chạy diễn tập (các script đọc mật khẩu từ .env)
+```
+Yêu cầu: Docker + Compose v2, openssl, curl, python3.
+Hướng dẫn chi tiết + khắc phục sự cố: `bao-cao/Huong-dan-cai-dat-va-thuc-hien-lab.docx`.
+
+> Các mục 1–6 bên dưới mô tả **thiết kế mục tiêu nhiều VM (mailcow/Wazuh)** — để tham khảo/mở rộng,
+> không bắt buộc. Đường chạy thực tế đã kiểm chứng là mục 0 ở trên (thư mục `mail-lite/`).
+
 ## 1. Hai cách triển khai
 
 | | Khuyến nghị: nhiều VM | Dự phòng: một host |

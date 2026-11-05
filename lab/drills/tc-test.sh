@@ -1,10 +1,13 @@
 #!/bin/bash
-# NOTE: lab credentials were redacted (<REDACTED-PW>). Set your own before running.
+# Credentials tu ../.env (copy tu env.example). Khong commit secret.
+set -a; . "$(dirname "$0")/../.env" 2>/dev/null || true; set +a
+CONTAIN_PW="Contained_$(openssl rand -hex 4 2>/dev/null || echo abcd1234)"
+RECOVER_PW="Recovered_$(openssl rand -hex 4 2>/dev/null || echo abcd1234)"
 # Ca kiểm thử cấu hình v1: TC-02 (mật khẩu yếu bị từ chối), TC-05 (khóa brute-force).
 set -u
 KC="docker exec keycloak /opt/keycloak/bin/kcadm.sh"
 $KC config credentials --server https://localhost:8443 --realm master \
-  --user admin --password '<REDACTED-PW>' \
+  --user admin --password "${KC_ADMIN_PASSWORD:?set in .env}" \
   --truststore /opt/keycloak/data/kc-trust.p12 --trustpass changeit >/dev/null 2>&1
 
 RES="https://sso.uni.lab:8443"
@@ -16,7 +19,7 @@ $KC set-password -r uni --username sv02 --new-password 'weak' 2>&1 | sed 's/^/  
 echo "--- thử đặt 'password' (trong ý nghĩa yếu) cho sv02 ---"
 $KC set-password -r uni --username sv02 --new-password 'short1' 2>&1 | sed 's/^/  /'
 echo "--- đặt mật khẩu HỢP LỆ (>=12) cho sv01 (đồng bộ với mail) ---"
-$KC set-password -r uni --username sv01 --new-password '<REDACTED-PW>' 2>&1 | sed 's/^/  /'
+$KC set-password -r uni --username sv01 --new-password "${USER_PW:?set in .env}" 2>&1 | sed 's/^/  /'
 echo "  => nếu không in lỗi là đặt THÀNH CÔNG (mật khẩu mạnh được chấp nhận)"
 
 echo
@@ -44,13 +47,13 @@ for i in $(seq 1 11); do
   r=$(kc_try "sv01" "WrongPass#$i$i$i")
   echo "  lần $i: $r"
 done
-echo "--- thử mật khẩu ĐÚNG (<REDACTED-PW>) khi đang bị khóa ---"
-echo "  kết quả: $(kc_try "sv01" "<REDACTED-PW>")  (mong đợi LOCKED => chứng minh khóa có hiệu lực)"
+echo "--- thử mật khẩu ĐÚNG ("$USER_PW") khi đang bị khóa ---"
+echo "  kết quả: $(kc_try "sv01" ""$USER_PW"")  (mong đợi LOCKED => chứng minh khóa có hiệu lực)"
 echo "--- trạng thái brute-force (kcadm) ---"
 $KC get attack-detection/brute-force/users/$SVID -r uni 2>&1 | sed 's/^/  /'
 echo "--- gỡ khóa rồi thử lại mật khẩu ĐÚNG ---"
 $KC delete attack-detection/brute-force/users/$SVID -r uni >/dev/null 2>&1
-echo "  kết quả sau khi gỡ khóa: $(kc_try "sv01" "<REDACTED-PW>")  (mong đợi OK)"
+echo "  kết quả sau khi gỡ khóa: $(kc_try "sv01" ""$USER_PW"")  (mong đợi OK)"
 
 echo
 echo "########## Bằng chứng phát hiện (Q3): LOGIN_ERROR trong log Keycloak ##########"

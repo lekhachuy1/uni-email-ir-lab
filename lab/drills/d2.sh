@@ -1,10 +1,13 @@
 #!/bin/bash
-# NOTE: lab credentials were redacted (<REDACTED-PW>). Set your own before running.
+# Credentials tu ../.env (copy tu env.example). Khong commit secret.
+set -a; . "$(dirname "$0")/../.env" 2>/dev/null || true; set +a
+CONTAIN_PW="Contained_$(openssl rand -hex 4 2>/dev/null || echo abcd1234)"
+RECOVER_PW="Recovered_$(openssl rand -hex 4 2>/dev/null || echo abcd1234)"
 set -u
 ts(){ date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 KC="docker exec keycloak /opt/keycloak/bin/kcadm.sh"
 $KC config credentials --server https://localhost:8443 --realm master --user admin \
-  --password '<REDACTED-PW>' --truststore /opt/keycloak/data/kc-trust.p12 --trustpass changeit >/dev/null 2>&1
+  --password "${KC_ADMIN_PASSWORD:?set in .env}" --truststore /opt/keycloak/data/kc-trust.p12 --trustpass changeit >/dev/null 2>&1
 CURL="curl -sk --resolve sso.uni.lab:8443:127.0.0.1"
 TOK="https://sso.uni.lab:8443/realms/uni/protocol/openid-connect/token"
 kc_code(){ $CURL -o /tmp/t -w '%{http_code}' -d client_id=admin-cli -d grant_type=password --data-urlencode "username=$1" --data-urlencode "password=$2" "$TOK"; }
@@ -13,7 +16,7 @@ uid(){ $KC get users -r uni -q username=$1 --fields id|grep -oE '[0-9a-f-]{36}'|
 echo "########## DIỄN TẬP D2 — DÙNG TRÁI PHÉP TÀI KHOẢN (đăng nhập / gửi email) ##########"
 
 echo "[A] Tương phản MFA: đăng nhập CHỈ-MẬT-KHẨU vào SSO"
-echo "   gv01 (nhóm có MFA) token login: http=$(kc_code gv01 <REDACTED-PW>)"
+echo "   gv01 (nhóm có MFA) token login: http=$(kc_code gv01 "$USER_PW")"
 echo "     $(grep -o '\"error_description\":\"[^\"]*\"' /tmp/t)  => BỊ CHẶN (cần OTP / chưa đủ MFA)"
 
 echo
@@ -33,7 +36,7 @@ import smtplib,ssl
 ctx=ssl.create_default_context();ctx.check_hostname=False;ctx.verify_mode=ssl.CERT_NONE
 try:
   s=smtplib.SMTP("127.0.0.1",587,timeout=20);s.starttls(context=ctx)
-  s.login("gv01@uni.lab","<REDACTED-PW>")
+  s.login("gv01@uni.lab",""$USER_PW"")
   n=0
   for i in range(2,7):
     r=f"sv0{i}@st.uni.lab"
